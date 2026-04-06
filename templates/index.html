@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SpamGuard • SMS Detector</title>
+  
+  <!-- Tailwind via CDN (you can replace with local build later) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'spam-red':   '#ef4444',
+            'spam-dark':  '#b91c1c',
+            'ham-green':  '#10b981',
+            'ham-dark':   '#047857',
+            'glass':      'rgba(255, 255, 255, 0.07)',
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-S..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+  <style>
+    body {
+      background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);
+      min-height: 100vh;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+
+    .glass-card {
+      background: rgba(30, 27, 75, 0.45);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+    }
+
+    .result-enter {
+      animation: fadeInScale 0.4s ease-out forwards;
+    }
+
+    @keyframes fadeInScale {
+      from { opacity: 0; transform: scale(0.96); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+
+    .textarea-focus {
+      transition: all 0.25s ease;
+    }
+
+    .textarea-focus:focus {
+      border-color: #c084fc;
+      box-shadow: 0 0 0 4px rgba(192, 132, 252, 0.18);
+      background: rgba(255,255,255,0.06);
+    }
+
+    .btn-gradient {
+      background: linear-gradient(to right, #ec4899, #a855f7);
+      transition: all 0.3s ease;
+    }
+
+    .btn-gradient:hover {
+      background: linear-gradient(to right, #db2777, #9333ea);
+      transform: translateY(-1px);
+    }
+  </style>
+</head>
+<body class="text-gray-100">
+
+  <div class="max-w-2xl mx-auto pt-12 pb-16 px-5 sm:px-6">
+
+    <!-- Header -->
+    <div class="text-center mb-10">
+      <div class="inline-flex items-center gap-3 mb-3">
+        <div class="text-5xl">🛡️</div>
+        <h1 class="text-5xl font-extrabold tracking-tight">
+          Spam<span class="text-pink-400">Guard</span>
+        </h1>
+      </div>
+      <p class="text-lg text-indigo-200/90 font-light">
+        Advanced SMS Spam & Ham Detector
+      </p>
+    </div>
+
+    <!-- Main Card -->
+    <div class="glass-card rounded-3xl p-8 md:p-10 shadow-2xl">
+
+      <form id="spamForm" class="space-y-7">
+
+        <div>
+          <label for="message" class="block text-sm font-medium text-indigo-200/90 mb-2.5 pl-1">
+            Your Message
+          </label>
+          <textarea
+            id="message"
+            rows="6"
+            placeholder="Paste or type the SMS here..."
+            class="textarea-focus w-full bg-white/5 border border-white/15 rounded-2xl px-5 py-4 text-white placeholder-indigo-300/60 focus:outline-none resize-none text-base leading-relaxed"
+          ></textarea>
+        </div>
+
+        <button
+          type="submit"
+          class="btn-gradient w-full text-white font-semibold text-lg py-5 rounded-2xl shadow-lg shadow-purple-900/40 flex items-center justify-center gap-3 transition-all"
+        >
+          <i class="fas fa-shield-halved text-lg"></i>
+          ANALYZE MESSAGE
+        </button>
+
+      </form>
+
+      <!-- Result Area -->
+      <div id="result" class="hidden mt-10 rounded-2xl p-7 text-center result-enter">
+        <div id="resultIcon" class="text-6xl mb-4"></div>
+        <div id="resultLabel" class="text-4xl font-bold tracking-tight mb-3"></div>
+        <div id="resultMessage" class="text-lg text-indigo-100/90 mt-2 px-2 leading-relaxed"></div>
+      </div>
+
+    </div>
+
+    <p class="text-center text-indigo-300/60 mt-10 text-sm">
+      Powered by Machine Learning • Built with Flask + Tailwind
+    </p>
+
+  </div>
+
+  <script>
+    const form = document.getElementById('spamForm');
+    const resultDiv = document.getElementById('result');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const message = document.getElementById('message').value.trim();
+      if (!message) {
+        alert("Please enter a message first.");
+        return;
+      }
+
+      resultDiv.classList.add('hidden');
+
+      try {
+        const res = await fetch('/predict', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: `message=${encodeURIComponent(message)}`
+        });
+
+        if (!res.ok) throw new Error('Server error');
+
+        const data = await res.json();
+
+        // ─────────────────────────────────────────────
+        // Improved visual feedback
+        // ─────────────────────────────────────────────
+        let icon, labelColor, borderColor;
+
+        if (data.result.toUpperCase().includes('SPAM')) {
+          icon        = 'fa-triangle-exclamation';
+          labelColor  = 'text-spam-red';
+          borderColor = 'border-spam-red';
+          resultDiv.style.background = 'rgba(239, 68, 68, 0.08)';
+        } else {
+          icon        = 'fa-circle-check';
+          labelColor  = 'text-ham-green';
+          borderColor = 'border-ham-green';
+          resultDiv.style.background = 'rgba(16, 185, 129, 0.08)';
+        }
+
+        document.getElementById('resultIcon').innerHTML = `<i class="fas ${icon} ${labelColor}"></i>`;
+        document.getElementById('resultLabel').innerHTML = `<span class="${labelColor}">${data.result}</span>`;
+        document.getElementById('resultMessage').textContent = `"${data.message}"`;
+
+        resultDiv.classList.remove('hidden');
+        resultDiv.classList.add('border-2', borderColor);
+
+      } catch (err) {
+        console.error(err);
+        resultDiv.innerHTML = `
+          <div class="text-red-400 text-xl font-medium">
+            Sorry, something went wrong. Please try again.
+          </div>
+        `;
+        resultDiv.classList.remove('hidden');
+      }
+    });
+  </script>
+
+</body>
+</html>
